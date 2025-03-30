@@ -1,0 +1,109 @@
+<!-- wallet-swaps.component.html -->
+<div class="container">
+  <h2>Просмотр свопов Solana кошелька</h2>
+
+  <form [formGroup]="walletForm" (ngSubmit)="onSubmit()" class="wallet-form">
+    <div class="form-group">
+      <label for="walletAddress">Адрес кошелька Solana</label>
+      <input
+        type="text"
+        id="walletAddress"
+        formControlName="address"
+        class="form-control"
+        placeholder="Введите адрес кошелька (например: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v)"
+      >
+      <div class="invalid-feedback" *ngIf="walletForm.get('address')?.invalid && walletForm.get('address')?.touched">
+        Пожалуйста, введите действительный адрес кошелька Solana
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary" [disabled]="walletForm.invalid || loading">
+      <span *ngIf="loading" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+      {{ loading ? 'Загрузка...' : 'Найти свопы' }}
+    </button>
+  </form>
+
+  <div *ngIf="error" class="alert alert-danger mt-3">
+    {{ error }}
+  </div>
+
+  <div *ngIf="swapTransactions.length > 0" class="swaps-container mt-3">
+    <h3>Найдено {{ swapTransactions.length }} транзакций</h3>
+
+    <div class="card mb-3" *ngFor="let tx of swapTransactions">
+      <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="badge badge-primary">{{ tx.type }}</span>
+          <!-- Используем javascript для форматирования даты вместо pipe -->
+          <small>{{ tx.timestamp.toLocaleString('ru-RU') }}</small>
+        </div>
+        <small>
+          <a [href]="'https://solscan.io/tx/' + tx.signature" target="_blank" class="text-truncate d-block">
+            {{ tx.signature }}
+          </a>
+        </small>
+      </div>
+
+      <div class="card-body">
+        <h5 class="card-title">Изменения в токенах:</h5>
+
+        <div class="token-changes">
+          <div class="token-change" *ngFor="let change of tx.tokenChanges">
+            <div class="d-flex align-items-center">
+              <img
+                *ngIf="change.logoURI"
+                [src]="change.logoURI"
+                alt="{{ change.symbol }}"
+                class="token-logo mr-2"
+              >
+              <div *ngIf="!change.logoURI" class="token-logo-placeholder mr-2">
+                {{ change.symbol.substring(0, 2) }}
+              </div>
+
+              <div>
+                <h6 class="mb-0">{{ change.symbol }}</h6>
+                <small class="text-muted">{{ change.name }}</small>
+              </div>
+
+              <div class="ml-auto">
+                <span [class]="change.change > 0 ? 'text-success' : 'text-danger'">
+                  {{ change.change > 0 ? '+' : '' }}{{ formatAmount(change.change) }}
+                </span>
+              </div>
+            </div>
+
+            <div class="token-amount-change">
+              <small class="text-muted">
+                {{ formatAmount(change.preAmount) }} → {{ formatAmount(change.postAmount) }}
+              </small>
+              <small>
+                <a
+                  [href]="'https://solscan.io/token/' + change.mint"
+                  target="_blank"
+                  class="text-muted token-mint"
+                >
+                  {{ change.mint }}
+                </a>
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Кнопка "Загрузить еще" -->
+    <div *ngIf="hasMoreTransactions" class="text-center mb-3">
+      <button class="btn btn-secondary"
+              (click)="loadMoreTransactions()"
+              [disabled]="loadingMore">
+        <span *ngIf="loadingMore" class="spinner-border spinner-border-sm mr-2"></span>
+        {{ loadingMore ? 'Загрузка...' : 'Загрузить еще' }}
+      </button>
+    </div>
+
+    <!-- Сообщение, если свопы не найдены -->
+    <div *ngIf="swapTransactions.length === 0 && !loading && !error" class="alert alert-info mt-3">
+      Свопы не найдены для этого кошелька
+    </div>
+  </div>
+</div>

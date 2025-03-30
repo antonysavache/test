@@ -1,0 +1,441 @@
+<!-- trading-history.component.html -->
+<div class="trading-history-container">
+  <!-- Input Section -->
+  <div class="input-section">
+    <div class="card">
+      <div class="card-header">
+        <h2>Trading History Analyzer</h2>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="addressInput">Wallet Address (Optional)</label>
+              <div class="input-group">
+                <input type="text" class="form-control" id="addressInput" #addressInput placeholder="Enter wallet address">
+                <div class="input-group-append">
+                  <button class="btn btn-primary" (click)="fetchData(addressInput.value)" [disabled]="isLoading">
+                    <i class="fas fa-search"></i> Fetch
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="fileInput">Upload Transaction Data</label>
+              <div class="custom-file">
+                <input type="file" class="custom-file-input" id="fileInput" (change)="onFileSelected($event)" accept=".json">
+                <label class="custom-file-label" for="fileInput">Choose file</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading & Error States -->
+        <div *ngIf="isLoading" class="text-center mt-3">
+          <div class="spinner-border text-primary" role="status">
+            <span class="sr-only">Loading...</span>
+          </div>
+          <p class="mt-2">Analyzing transactions...</p>
+        </div>
+
+        <div *ngIf="error" class="alert alert-danger mt-3">
+          {{ error }}
+        </div>
+
+        <!-- Quick Load Test Data (for development) -->
+        <div class="mt-3 text-right">
+          <button class="btn btn-sm btn-outline-secondary" (click)="loadMockData()">
+            Load Sample Data
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Section (only shown when data is loaded) -->
+  <div *ngIf="report" class="report-section mt-4">
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs">
+      <li class="nav-item">
+        <a class="nav-link" [class.active]="selectedView === 'summary'" (click)="selectedView = 'summary'">
+          Summary
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" [class.active]="selectedView === 'trades'" (click)="selectedView = 'trades'">
+          Trades
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" [class.active]="selectedView === 'tokens'" (click)="selectedView = 'tokens'">
+          Token Balances
+        </a>
+      </li>
+    </ul>
+
+    <!-- Summary View -->
+    <div *ngIf="selectedView === 'summary'" class="tab-content p-3 border border-top-0 rounded-bottom">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header bg-light">
+              <h5>Performance Summary</h5>
+            </div>
+            <div class="card-body">
+              <div class="summary-stat">
+                <div class="stat-label">Total PnL:</div>
+                <div class="stat-value" [class.text-success]="report.summary.totalPnL > 0"
+                     [class.text-danger]="report.summary.totalPnL < 0">
+                  {{ report.summary.totalPnL | currency:'USD':'symbol':'1.2-2' }}
+                </div>
+              </div>
+
+              <div class="summary-stat">
+                <div class="stat-label">Realized PnL:</div>
+                <div class="stat-value" [class.text-success]="report.summary.realizedPnL > 0"
+                     [class.text-danger]="report.summary.realizedPnL < 0">
+                  {{ report.summary.realizedPnL | currency:'USD':'symbol':'1.2-2' }}
+                </div>
+              </div>
+
+              <div class="summary-stat">
+                <div class="stat-label">Unrealized PnL:</div>
+                <div class="stat-value" [class.text-success]="report.summary.unrealizedPnL > 0"
+                     [class.text-danger]="report.summary.unrealizedPnL < 0">
+                  {{ report.summary.unrealizedPnL | currency:'USD':'symbol':'1.2-2' }}
+                </div>
+              </div>
+
+              <div class="summary-stat">
+                <div class="stat-label">Win Rate:</div>
+                <div class="stat-value">
+                  {{ report.summary.winRate | number:'1.2-2' }}%
+                </div>
+              </div>
+
+              <div class="summary-stat">
+                <div class="stat-label">Profit Factor:</div>
+                <div class="stat-value">
+                  {{ report.summary.profitFactor === Infinity ? '∞' : (report.summary.profitFactor | number:'1.2-2') }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header bg-light">
+              <h5>Trading Activity</h5>
+            </div>
+            <div class="card-body">
+              <div class="summary-stat">
+                <div class="stat-label">Total Trades:</div>
+                <div class="stat-value">{{ report.summary.totalTradeCount }}</div>
+              </div>
+
+              <div class="summary-stat">
+                <div class="stat-label">Completed Trades:</div>
+                <div class="stat-value">{{ report.summary.completedTradeCount }}</div>
+              </div>
+
+              <div class="summary-stat">
+                <div class="stat-label">Open Positions:</div>
+                <div class="stat-value">{{ report.summary.openTradeCount }}</div>
+              </div>
+
+              <div class="summary-stat">
+                <div class="stat-label">Winning Trades:</div>
+                <div class="stat-value text-success">{{ report.summary.winningTradeCount }}</div>
+              </div>
+
+              <div class="summary-stat">
+                <div class="stat-label">Losing Trades:</div>
+                <div class="stat-value text-danger">{{ report.summary.losingTradeCount }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mt-3">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header bg-light">
+              <h5>Volume</h5>
+            </div>
+            <div class="card-body">
+              <div class="summary-stat">
+                <div class="stat-label">Total Buy Volume:</div>
+                <div class="stat-value">
+                  {{ report.summary.totalBuyVolumeUSD | currency:'USD':'symbol':'1.2-2' }}
+                </div>
+              </div>
+
+              <div class="summary-stat">
+                <div class="stat-label">Total Sell Volume:</div>
+                <div class="stat-value">
+                  {{ report.summary.totalSellVolumeUSD | currency:'USD':'symbol':'1.2-2' }}
+                </div>
+              </div>
+
+              <div class="summary-stat">
+                <div class="stat-label">Trading Period:</div>
+                <div class="stat-value">
+                  {{ report.summary.startDate | date:'mediumDate' }} - {{ report.summary.endDate | date:'mediumDate' }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header bg-light">
+              <h5>Best Performing Tokens</h5>
+            </div>
+            <div class="card-body p-0">
+              <table class="table table-sm table-hover mb-0">
+                <thead>
+                <tr>
+                  <th>Token</th>
+                  <th class="text-right">PnL</th>
+                  <th class="text-right">ROI</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr *ngFor="let token of getOrderedTokenBalances().slice(0, 5)">
+                  <td>{{ token.symbol }}</td>
+                  <td class="text-right" [class.text-success]="token.totalPnL > 0"
+                      [class.text-danger]="token.totalPnL < 0">
+                    {{ token.totalPnL | currency:'USD':'symbol':'1.2-2' }}
+                  </td>
+                  <td class="text-right" [class.text-success]="token.totalPnL > 0"
+                      [class.text-danger]="token.totalPnL < 0">
+                    {{ token.totalBuyValue ? (token.totalPnL / token.totalBuyValue * 100) : 0 | number:'1.2-2' }}%
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export Options -->
+      <div class="mt-4 text-right">
+        <button class="btn btn-outline-primary mr-2" (click)="exportData('csv')">
+          <i class="fas fa-file-csv"></i> Export as CSV
+        </button>
+        <button class="btn btn-outline-primary" (click)="exportData('json')">
+          <i class="fas fa-file-code"></i> Export as JSON
+        </button>
+      </div>
+    </div>
+
+    <!-- Trades View -->
+    <div *ngIf="selectedView === 'trades'" class="tab-content p-3 border border-top-0 rounded-bottom">
+      <!-- Filters -->
+      <div class="filters mb-3">
+        <div class="row">
+          <div class="col-md-3">
+            <div class="form-group">
+              <label for="tokenFilter">Token</label>
+              <select class="form-control" id="tokenFilter" [(ngModel)]="selectedToken">
+                <option [ngValue]="null">All Tokens</option>
+                <option *ngFor="let token of report.tokenBalances" [ngValue]="token.token">
+                  {{ token.symbol }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <div class="form-group">
+              <label>Trade Status</label>
+              <div class="custom-control custom-checkbox">
+                <input type="checkbox" class="custom-control-input" id="showCompletedOnly"
+                       [(ngModel)]="showOnlyCompleted">
+                <label class="custom-control-label" for="showCompletedOnly">Show completed only</label>
+              </div>
+              <div class="custom-control custom-checkbox">
+                <input type="checkbox" class="custom-control-input" id="showWinningOnly"
+                       [(ngModel)]="showOnlyWinning">
+                <label class="custom-control-label" for="showWinningOnly">Show winning only</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <div class="form-group">
+              <label>Date Range</label>
+              <div class="input-group input-daterange">
+                <input type="date" class="form-control" [(ngModel)]="dateRange.start">
+                <div class="input-group-text">to</div>
+                <input type="date" class="form-control" [(ngModel)]="dateRange.end">
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-secondary btn-block" (click)="resetFilters()">
+              Reset Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trades Table -->
+      <div class="table-responsive">
+        <table class="table table-hover table-striped">
+          <thead>
+          <tr>
+            <th (click)="sortTrades('buyTimestamp')" class="sortable">
+              Buy Date
+              <i *ngIf="sortColumn === 'buyTimestamp'"
+                 [class]="'fas fa-sort-' + (sortDirection === 'asc' ? 'up' : 'down')"></i>
+            </th>
+            <th (click)="sortTrades('sellTimestamp')" class="sortable">
+              Sell Date
+              <i *ngIf="sortColumn === 'sellTimestamp'"
+                 [class]="'fas fa-sort-' + (sortDirection === 'asc' ? 'up' : 'down')"></i>
+            </th>
+            <th (click)="sortTrades('token')" class="sortable">
+              Token
+              <i *ngIf="sortColumn === 'token'"
+                 [class]="'fas fa-sort-' + (sortDirection === 'asc' ? 'up' : 'down')"></i>
+            </th>
+            <th (click)="sortTrades('boughtAmount')" class="sortable text-right">
+              Amount
+              <i *ngIf="sortColumn === 'boughtAmount'"
+                 [class]="'fas fa-sort-' + (sortDirection === 'asc' ? 'up' : 'down')"></i>
+            </th>
+            <th (click)="sortTrades('buyPrice')" class="sortable text-right">
+              Buy Price
+              <i *ngIf="sortColumn === 'buyPrice'"
+                 [class]="'fas fa-sort-' + (sortDirection === 'asc' ? 'up' : 'down')"></i>
+            </th>
+            <th (click)="sortTrades('sellPrice')" class="sortable text-right">
+              Sell Price
+              <i *ngIf="sortColumn === 'sellPrice'"
+                 [class]="'fas fa-sort-' + (sortDirection === 'asc' ? 'up' : 'down')"></i>
+            </th>
+            <th (click)="sortTrades('pnl')" class="sortable text-right">
+              P&L
+              <i *ngIf="sortColumn === 'pnl'"
+                 [class]="'fas fa-sort-' + (sortDirection === 'asc' ? 'up' : 'down')"></i>
+            </th>
+            <th (click)="sortTrades('pnlPercentage')" class="sortable text-right">
+              P&L %
+              <i *ngIf="sortColumn === 'pnlPercentage'"
+                 [class]="'fas fa-sort-' + (sortDirection === 'asc' ? 'up' : 'down')"></i>
+            </th>
+            <th class="text-center">Status</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr *ngFor="let trade of getCurrentPageTrades()">
+            <td>{{ trade.buyDate | date:'short' }}</td>
+            <td>{{ trade.sellDate ? (trade.sellDate | date:'short') : '-' }}</td>
+            <td>{{ trade.tokenSymbol }}</td>
+            <td class="text-right">{{ trade.boughtAmount | number:'1.2-8' }}</td>
+            <td class="text-right">{{ trade.buyPrice | currency:'USD':'symbol':'1.2-6' }}</td>
+            <td class="text-right">{{ trade.sellPrice ? (trade.sellPrice | currency:'USD':'symbol':'1.2-6') : '-' }}</td>
+            <td class="text-right" [class.text-success]="trade.pnl > 0" [class.text-danger]="trade.pnl < 0">
+              {{ trade.pnl ? (trade.pnl | currency:'USD':'symbol':'1.2-2') : '-' }}
+            </td>
+            <td class="text-right" [class.text-success]="trade.pnlPercentage > 0" [class.text-danger]="trade.pnlPercentage < 0">
+              {{ trade.pnlPercentage ? (trade.pnlPercentage | number:'1.2-2') + '%' : '-' }}
+            </td>
+            <td class="text-center">
+              <span *ngIf="trade.isComplete" class="badge badge-success">Completed</span>
+              <span *ngIf="!trade.isComplete" class="badge badge-warning">Open</span>
+            </td>
+          </tr>
+          <tr *ngIf="getCurrentPageTrades().length === 0">
+            <td colspan="9" class="text-center">No trades match your filters</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div *ngIf="getFilteredTrades().length > pageSize" class="d-flex justify-content-between align-items-center mt-3">
+        <div>
+          Showing {{ (currentPage - 1) * pageSize + 1 }} to
+          {{ Math.min(currentPage * pageSize, getFilteredTrades().length) }} of
+          {{ getFilteredTrades().length }} trades
+        </div>
+
+        <nav>
+          <ul class="pagination mb-0">
+            <li class="page-item" [class.disabled]="currentPage === 1">
+              <a class="page-link" (click)="currentPage = 1">First</a>
+            </li>
+            <li class="page-item" [class.disabled]="currentPage === 1">
+              <a class="page-link" (click)="currentPage = currentPage - 1">Previous</a>
+            </li>
+
+            <li class="page-item" *ngFor="let page of [].constructor(totalPages > 5 ? 5 : totalPages); let i = index"
+                [class.active]="currentPage === i + 1"
+                [class.disabled]="i + 1 > totalPages">
+              <a class="page-link" (click)="currentPage = i + 1">{{ i + 1 }}</a>
+            </li>
+
+            <li class="page-item" [class.disabled]="currentPage >= totalPages">
+              <a class="page-link" (click)="currentPage = currentPage + 1">Next</a>
+            </li>
+            <li class="page-item" [class.disabled]="currentPage >= totalPages">
+              <a class="page-link" (click)="currentPage = totalPages">Last</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+
+    <!-- Token Balances View -->
+    <div *ngIf="selectedView === 'tokens'" class="tab-content p-3 border border-top-0 rounded-bottom">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+          <tr>
+            <th>Token</th>
+            <th class="text-right">Balance</th>
+            <th class="text-right">Avg Buy Price</th>
+            <th class="text-right">Current Price</th>
+            <th class="text-right">Total Bought</th>
+            <th class="text-right">Total Sold</th>
+            <th class="text-right">Realized P&L</th>
+            <th class="text-right">Unrealized P&L</th>
+            <th class="text-right">Total P&L</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr *ngFor="let token of getOrderedTokenBalances()">
+            <td>{{ token.symbol }}</td>
+            <td class="text-right">{{ token.balance | number:'1.2-8' }}</td>
+            <td class="text-right">{{ token.avgBuyPrice | currency:'USD':'symbol':'1.2-6' }}</td>
+            <td class="text-right">{{ token.currentPriceUSD | currency:'USD':'symbol':'1.2-6' }}</td>
+            <td class="text-right">{{ token.totalBought | number:'1.2-2' }}</td>
+            <td class="text-right">{{ token.totalSold | number:'1.2-2' }}</td>
+            <td class="text-right" [class.text-success]="token.realizedPnL > 0" [class.text-danger]="token.realizedPnL < 0">
+              {{ token.realizedPnL | currency:'USD':'symbol':'1.2-2' }}
+            </td>
+            <td class="text-right" [class.text-success]="token.unrealizedPnL > 0" [class.text-danger]="token.unrealizedPnL < 0">
+              {{ token.unrealizedPnL | currency:'USD':'symbol':'1.2-2' }}
+            </td>
+            <td class="text-right" [class.text-success]="token.totalPnL > 0" [class.text-danger]="token.totalPnL < 0">
+              {{ token.totalPnL | currency:'USD':'symbol':'1.2-2' }}
+            </td>
+          </tr>
+          <tr *ngIf="report.tokenBalances.length === 0">
+            <td colspan="9" class="text-center">No token balances found</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
